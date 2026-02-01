@@ -61,7 +61,16 @@ def create_kernel_with_chat_completion() -> Kernel:
 
     return kernel
 
-
+# Cost calculation for GPT-4o
+def calculate_cost(prompt_tokens: int, completion_tokens: int) -> float:
+    """
+    Calculate cost for GPT-4o usage
+    Input: $2.50 per 1M tokens
+    Output: $10.00 per 1M tokens
+    """
+    input_cost = (prompt_tokens / 1_000_000) * 2.50
+    output_cost = (completion_tokens / 1_000_000) * 10.00
+    return input_cost + output_cost
 
 async def main():
 
@@ -458,6 +467,10 @@ async def main():
     solution_tokens=0
     reviewer_tokens=0
     total_tokens=0
+    
+    # Recording Token breakdown for cost calculation
+    total_prompt_tokens = 0
+    total_completion_tokens = 0
 
     # User Input
     user_input = input("User Prompt: ")
@@ -513,6 +526,8 @@ async def main():
                 this_total= this_prompt_tokens+this_completion_tokens
                 parse_tokens +=this_total
                 total_tokens+=this_total
+                total_prompt_tokens += this_prompt_tokens
+                total_completion_tokens += this_completion_tokens
     except json.decoder.JSONDecodeError as e:
         print("There was a problem parsing the response. Please restart AgroAskAI and try again.")
         AgentGroupChatManager.is_complete = True
@@ -620,6 +635,9 @@ async def main():
             this_prompt_tokens = content.metadata["usage"].prompt_tokens
             this_completion_tokens = content.metadata["usage"].completion_tokens
             this_total = this_prompt_tokens + this_completion_tokens
+            
+            total_prompt_tokens += this_prompt_tokens
+            total_completion_tokens += this_completion_tokens
 
             if content.name == "PromptAgent":
                 promptAgent_tokens += this_total
@@ -674,6 +692,9 @@ async def main():
     
     output_df.to_csv('./logs/output.csv', index=False, mode='a')
 
+    # Calculate costs
+    total_cost = calculate_cost(total_prompt_tokens, total_completion_tokens)
+
     token_data =f"""
     Input: {input_id}
     PromptAgent tokens: {promptAgent_tokens}
@@ -683,9 +704,22 @@ async def main():
     SolutionAgent tokens: {solution_tokens}
     ReviewerAgent tokens: {reviewer_tokens}
     Total tokens: {total_tokens}
+    Total prompt tokens: {total_prompt_tokens}
+    Total completion tokens: {total_completion_tokens}
+    Total cost (USD): ${total_cost:.6f}
 """
     with open('./logs/tokens.txt', "a") as file:
             file.write(token_data)
+    
+    # Print cost summary to console
+    print(f"\n{'='*50}")
+    print(f"Cost Summary for Input #{input_id}")
+    print(f"{'='*50}")
+    print(f"Prompt tokens: {total_prompt_tokens:,}")
+    print(f"Completion tokens: {total_completion_tokens:,}")
+    print(f"Total tokens: {total_tokens:,}")
+    print(f"Total cost: ${total_cost:.6f}")
+    print(f"{'='*50}\n")
 
 if __name__ == "__main__":
     asyncio.run(main())
