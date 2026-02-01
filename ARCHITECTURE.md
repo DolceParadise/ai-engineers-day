@@ -1,9 +1,9 @@
 """Project structure and architecture documentation."""
 
-# AgroAskAI - Refactored Architecture
+# KhetSetu - Refactored Architecture
 
 ## Overview
-The AgroAskAI project has been refactored to follow industry-standard Python coding practices and best practices for software architecture. The codebase is now organized into modular, maintainable components with clear separation of concerns.
+The KhetSetu project has been refactored to follow industry-standard Python coding practices and best practices for software architecture. The codebase is now organized into modular, maintainable components with clear separation of concerns.
 
 ## Project Structure
 
@@ -37,7 +37,7 @@ ai-engineers-day/
 ## Key Components
 
 ### 1. **Main Module** (`main.py`)
-The entry point for the application containing the `AgroAskAI` class that orchestrates the entire system:
+The entry point for the application containing the `KhetSetu` class that orchestrates the entire system:
 - Manages agent initialization and interaction
 - Handles user input/output
 - Coordinates weather data retrieval

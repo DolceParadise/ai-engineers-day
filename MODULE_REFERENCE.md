@@ -2,7 +2,7 @@
 
 ## Quick Import Guide
 
-This document shows how to import and use the main components of the refactored AgroAskAI system.
+This document shows how to import and use the main components of the refactored KhetSetu system.
 
 ## src.config
 

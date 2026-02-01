@@ -241,3 +241,15 @@ Total tokens: 10590
 Total prompt tokens: 10211
 Total completion tokens: 379
 Total cost (USD): $0.029317
+
+Input: 74
+PromptAgent tokens: 2135
+ParseAgent tokens: 627
+ForecastAgent tokens: 0
+WeatherHistoryAgent tokens: 0
+SolutionAgent tokens: 8738
+ReviewerAgent tokens: 11046
+Total tokens: 22546
+Total prompt tokens: 20739
+Total completion tokens: 1807
+Total cost (USD): $0.069918

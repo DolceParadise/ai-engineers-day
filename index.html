@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KhetSetu</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <span class="logo-icon">🌾</span>
+                    <span>KhetSetu</span>
+                </div>
+            </div>
+            <nav class="sidebar-nav">
+                <button class="nav-item active" id="newChatBtn">
+                    <span class="icon">+</span>
+                    <span>New Query</span>
+                </button>
+                <div class="saved-chats" id="savedChats">
+                    <div class="saved-chats-label">Recent</div>
+                    <div class="saved-chats-list" id="savedChatsList"></div>
+                </div>
+            </nav>
+            <div class="sidebar-footer">
+                <button class="sidebar-btn" id="darkModeBtn" title="Toggle dark mode">🌙</button>
+                <button class="sidebar-btn" id="settingsBtn" title="Settings">⚙️</button>
+            </div>
+        </aside>
+
+        <!-- Main Chat Area -->
+        <main class="main-chat">
+            <!-- Header -->
+            <header class="chat-header">
+                <div class="header-title">
+                    <h1>KhetSetu</h1>
+                    <p>Ask questions about agriculture, weather, and farming decisions</p>
+                </div>
+            </header>
+
+            <!-- Chat Messages -->
+            <div class="chat-messages" id="chatMessages">
+                <!-- Messages populated here -->
+            </div>
+
+            <!-- Input Area -->
+            <div class="chat-input-area">
+                <form class="input-form" id="queryForm">
+                    <div class="input-wrapper">
+                        <textarea
+                            id="userInput"
+                            class="message-input"
+                            placeholder="Ask me anything about agriculture, weather, or farming..."
+                            rows="1"
+                        ></textarea>
+                        <button type="submit" class="send-button" id="submitBtn" aria-label="Send message">
+                            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                                <path d="M2 10L18 2L10 18L8 12L2 10Z" fill="currentColor"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <p class="input-hint">KhetSetu can speak multiple languages. Ask in English, Hindi, or Hinglish.</p>
+                </form>
+            </div>
+
+            <!-- Debug Panel (Collapsible) -->
+            <div class="debug-panel hidden" id="debugPanel">
+                <button class="debug-toggle" id="debugToggle">
+                    <span class="toggle-label">Debug Information</span>
+                    <span class="toggle-arrow">▼</span>
+                </button>
+                <div class="debug-content hidden" id="debugContent">
+                    <div class="debug-section">
+                        <h4>Token Usage</h4>
+                        <div class="token-stats" id="tokenStats">
+                            <div class="stat-item">
+                                <span class="stat-label">Prompt Tokens:</span>
+                                <span class="stat-value" id="promptTokens">0</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Completion Tokens:</span>
+                                <span class="stat-value" id="completionTokens">0</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Estimated Cost:</span>
+                                <span class="stat-value" id="costValue">$0.00</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="debug-section">
+                        <h4>Agent Details</h4>
+                        <table class="agent-details-table" id="agentDetailsTable">
+                            <thead>
+                                <tr>
+                                    <th>Agent</th>
+                                    <th>Tokens</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="agentTableBody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Notification Container -->
+    <div class="notification-container" id="notificationContainer"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>

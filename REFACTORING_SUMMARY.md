@@ -95,7 +95,7 @@ async def parse_user_input(
 
 ## Key Classes
 
-### AgroAskAI
+### KhetSetu
 Main orchestrator class managing:
 - Agent initialization
 - User input processing
