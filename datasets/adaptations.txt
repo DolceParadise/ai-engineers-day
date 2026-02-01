@@ -1,0 +1,36 @@
+Region,Element,Adaptation Options
+"Kitui, Kenya",Temperature,Planting drought resistant crops 
+"Kitui, Kenya",Temperature,Planting just before the onset of rains 
+"Kitui, Kenya",Temperature,Planting early maturing crops 
+"Kitui, Kenya",Temperature,Irrigation 
+"Kitui, Kenya",Temperature,Planting immediately after the onset of the rains 
+"Kitui, Kenya",Temperature,Water harvesting 
+"Kitui, Kenya",Temperature,Switching from crop farming to livestock keeping 
+"Kitui, Kenya",Precipitation,Planting drought resistant crops 
+"Kitui, Kenya",Precipitation,Irrigation 
+"Kitui, Kenya",Precipitation,Planting just before the onset of rains 
+"Kitui, Kenya",Precipitation,Planting immediately after the onset of the rains 
+"Kitui, Kenya",Precipitation,Use of hybrid crop varieties 
+"Kitui, Kenya",Precipitation,Crop diversification 
+"Kitui, Kenya",Precipitation,Use of pesticides 
+"Kitui, Kenya",Precipitation,Use of fertilizer 
+"Kitui, Kenya",Precipitation,Use of manure 
+"Kitui, Kenya",Precipitation,Water harvesting 
+"Kitui, Kenya",Precipitation,Soil conservation 
+"Kitui, Kenya",Precipitation,Mixed crop and livestock farming
+"Punjab, India",Temperature,Planting heat-tolerant wheat varieties
+"Punjab, India",Temperature,Adjusting sowing dates to avoid peak heat
+"Punjab, India",Temperature,Using mulching to reduce soil evaporation
+"Punjab, India",Temperature,Irrigation scheduling to reduce heat stress
+"Punjab, India",Temperature,Shading or windbreaks for sensitive crops
+"Punjab, India",Temperature,Switching to short-duration crops
+"Punjab, India",Precipitation,Using drip or sprinkler irrigation to cope with irregular rainfall
+"Punjab, India",Precipitation,Adopting water-efficient rice cultivation (e.g., SRI)
+"Punjab, India",Precipitation,Crop rotation to maintain soil moisture
+"Punjab, India",Precipitation,Soil moisture conservation techniques (e.g., mulching, contour bunds)
+"Punjab, India",Precipitation,Using drought-tolerant crop varieties
+"Punjab, India",Precipitation,Adopting integrated pest management
+"Punjab, India",Precipitation,Applying organic fertilizers to improve water retention
+"Punjab, India",Precipitation,Staggered planting to reduce risk of crop failure
+"Punjab, India",Precipitation,Mixed crop-livestock systems to diversify income
+"Punjab, India",Precipitation,Water harvesting and storage for supplemental irrigation
