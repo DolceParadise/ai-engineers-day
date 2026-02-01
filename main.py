@@ -2,7 +2,8 @@ import os
 import json
 import asyncio
 import pandas as pd
-from langdetect import detect
+import re
+from langdetect import detect, LangDetectException
 from semantic_kernel.exceptions.service_exceptions import ServiceResponseException
 from semantic_kernel.exceptions.function_exceptions import FunctionExecutionException
 from datasets.languages import languages
@@ -25,6 +26,87 @@ from semantic_kernel.prompt_template.prompt_template_config import PromptTemplat
 
 # Load .env file 
 load_dotenv()
+
+# Function to detect if text is Hinglish (Hindi + English mix)
+def is_hinglish(text: str) -> bool:
+    """
+    Detect if the text contains a mix of Hindi (Devanagari script) and English (Latin script)
+    Returns True if both scripts are present, indicating Hinglish
+    """
+    # Check for Devanagari script (Hindi)
+    has_hindi = bool(re.search(r'[\u0900-\u097F]', text))
+    # Check for Latin script (English)
+    has_english = bool(re.search(r'[a-zA-Z]', text))
+    return has_hindi and has_english
+
+def is_romanized_hinglish(text: str) -> bool:
+    """
+    Detect romanized Hinglish (Hindi written in Latin script mixed with English)
+    Looks for common Hindi words written in Latin script
+    """
+    # Common Hinglish words/patterns (romanized Hindi)
+    hinglish_keywords = [
+        'mein', 'main', 'hai', 'hain', 'kya', 'kaise', 'ke', 'ki', 
+        'aur', 'ka', 'ko', 'se', 'par', 'liye', 'chahiye', 'chahie',
+        'karna', 'hona', 'tha', 'thi', 'the', 'ho', 'kare', 'karo',
+        'nahi', 'nahin', 'kyun', 'kyu', 'kab', 'kahan', 'yahan', 'vahan',
+        'mujhe', 'tumhe', 'humne', 'unhe', 'iske', 'uske',
+        'fasal', 'kheti', 'barish', 'mausam', 'pani'
+    ]
+    
+    text_lower = text.lower()
+    # Check if text contains multiple Hinglish keywords
+    matches = sum(1 for keyword in hinglish_keywords if keyword in text_lower)
+    return matches >= 2  # At least 2 Hinglish words
+
+def detect_user_language(text: str) -> tuple[str, str]:
+    """
+    Detect the user's language from input text.
+    Returns: (language_code, language_name)
+    Special handling for Hinglish (Hindi+English mix)
+    """
+    # First check if it's Hinglish with Devanagari script
+    if is_hinglish(text):
+        return 'hi-en', 'Hinglish (Hindi and English)'
+    
+    # Check if it's romanized Hinglish (no Devanagari but Hindi words in Latin)
+    if is_romanized_hinglish(text):
+        return 'hi-en', 'Hinglish (Hindi and English)'
+    
+    try:
+        detected_code = detect(text)
+        
+        # If detected as Tagalog/Filipino, Swahili, or Indonesian, it might be romanized Hinglish
+        # These languages are commonly confused with romanized Hindi
+        if detected_code in ['tl', 'sw', 'id', 'so']:
+            # Check if there are any Hindi characters
+            has_hindi = bool(re.search(r'[\u0900-\u097F]', text))
+            if has_hindi:
+                return 'hi', 'Hindi'
+            # Check for romanized Hinglish patterns
+            if is_romanized_hinglish(text):
+                return 'hi-en', 'Hinglish (Hindi and English)'
+            # Otherwise default to English as these are often misdetections
+            return 'en', 'English'
+        
+        # For Hindi detection, verify it's actually Hindi
+        if detected_code == 'hi':
+            has_hindi_script = bool(re.search(r'[\u0900-\u097F]', text))
+            if not has_hindi_script:
+                # No Hindi script but detected as Hindi - probably English or romanized Hinglish
+                if is_romanized_hinglish(text):
+                    return 'hi-en', 'Hinglish (Hindi and English)'
+                return 'en', 'English'
+        
+        language_name = languages.get(detected_code, 'English')
+        return detected_code, language_name
+        
+    except LangDetectException:
+        # If detection fails, check for romanized Hinglish
+        if is_romanized_hinglish(text):
+            return 'hi-en', 'Hinglish (Hindi and English)'
+        # Otherwise default to English
+        return 'en', 'English'
 
 # Initialize Knowledge Base (OpenAIChatCompletion)
 def create_kernel_with_chat_completion() -> Kernel:
@@ -106,7 +188,8 @@ async def main():
     - DO NOT mention or impersonate any other agents.
     - DO NOT call any kernel functions or make decisions about what agent to call next.
     - ONLY relay the approved solution and communicate clearly with the user.
-    - Answer using the language and dialect used by the user. For example, if they are talking in Swahili, translate your response in Swahili for your output. 
+    - Answer using the language and dialect used by the user. For example, if they are talking in Swahili, translate your response in Swahili for your output.
+    - For Hinglish (Hindi and English mix), respond in a natural mix of Hindi and English, or primarily in Hindi with some English words as is common in Indian communication. 
 
     ==Example Flow==
     - First message (greeting): “Hello! I’m here to assist with your query. I’m gathering the necessary information and will update you shortly.”
@@ -209,8 +292,8 @@ async def main():
 
     ==Output==
     - Keep all output messages under 8000 tokens. Make sure messages arent too long.
-    - Answer using the language and dialect used by the user. For example, if they are talking in Spanish, respond in Spanish. 
-    - Use the information obtained by get_forecast(location, forecast_date) to answer the user's question.
+    - Answer using the language and dialect used by the user. For example, if they are talking in Spanish, respond in Spanish.
+    - For Hinglish (Hindi and English mix), respond in a natural mix of Hindi and English, or primarily in Hindi with some English words.    - For Hinglish (Hindi and English mix), respond in a natural mix of Hindi and English, or primarily in Hindi with some English words.    - Use the information obtained by get_forecast(location, forecast_date) to answer the user's question.
     - Only give information that asked for and is absolutely necessary.
     - Be as detailed as possible but also be brief. Not too many lines of output.
     - Example: If the user is asking for the weather for TODAY (forecast_date should be 0 in this case), 
@@ -289,6 +372,7 @@ async def main():
     == Output ==
     Keep all output messages under 8000 tokens. Make sure messages arent too long.
     Answer using the language and dialect used by the user. For example, if they are talking in Swahili, translate your response in Swahili for your output.
+    For Hinglish (Hindi and English mix), respond in a natural mix of Hindi and English, or primarily in Hindi with some English words as is common in Indian communication.
     Your responses should be complete, practical to the smallscale and large local farmers of that area. Make sure they can implement to reduce risk and improve yields under local conditions.
     Your answer should be detailed and complete.
     Make sure it answers every part of the user's input. If the user asks more than one question, make sure the solution provided answers every part of the question.
@@ -347,6 +431,7 @@ async def main():
     == Output ==
     Make the output less than 8000 tokens. Make sure messages arent too long.
     Answer using the language and dialect used by the user. For example, if they are talking in Swahili, translate your response in Swahili for your output.
+    For Hinglish (Hindi and English mix), respond in a natural mix of Hindi and English, or primarily in Hindi with some English words as is common in Indian communication.
     Provide one of the following:
 
     1. If the response does not answer every single part of the user's question (even sentences after the first question in user's input), still need to be made better with recommendations, or still is in need of improvement:
@@ -500,10 +585,14 @@ async def main():
     output_df = pd.DataFrame( columns = ['InputID', 'SequenceNumber', 'AgentName', 'Output'])
     output_list = list()
 
-    # Multi-lingual support
-    detected_language = detect(user_input)
-    user_language = languages.get(detected_language, 'English')
-    language_context = (f"The user's language is {user_language}")
+    # Multi-lingual support with improved Hinglish detection
+    detected_code, user_language = detect_user_language(user_input)
+    
+    # Create language context with special instruction for Hinglish
+    if detected_code == 'hi-en':
+        language_context = (f"The user's language is {user_language}. Please respond in a mix of Hindi and English, or primarily in Hindi with some English words as appropriate.")
+    else:
+        language_context = (f"The user's language is {user_language}")
 
     await AgentGroupChatManager.add_chat_message(ChatMessageContent(
         role=AuthorRole.USER,
