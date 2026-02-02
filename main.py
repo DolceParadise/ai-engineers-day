@@ -43,6 +43,8 @@ class KhetSetu:
         self.token_tracker = TokenTracker()
         self.cost_calculator = CostCalculator()
         self.agent_outputs = []  # Store agent outputs for web API
+        self.current_image_base64 = None  # Store current image for vision analysis
+        self.current_image_url = None  # Store current image URL for vision analysis
 
     async def parse_user_input(
         self,
@@ -365,12 +367,19 @@ class KhetSetu:
         print(f"Total cost: ${total_cost:.6f}")
         print(f"{'='*50}\n")
 
-    async def process_web_query(self, user_input: str) -> dict:
+    async def process_web_query(
+        self,
+        user_input: str,
+        image_base64: Optional[str] = None,
+        image_url: Optional[str] = None
+    ) -> dict:
         """
         Process a user query and return structured response for web API.
         
         Args:
             user_input: The user's agricultural query
+            image_base64: Optional base64-encoded image data (without data: prefix)
+            image_url: Optional URL to a public image
             
         Returns:
             Dictionary with agent outputs, final answer, and token summary
@@ -398,9 +407,33 @@ class KhetSetu:
                 content=user_input
             ))
             
+            # Add image information if provided
+            image_context = ""
+            # Note: Image data will be passed in context, not as separate message
+            
             # Get parse agent
             from src.agents import ParseAgent
             parse_agent = ParseAgent.create(self.kernel)
+            
+            # Pre-analyze image if provided (run vision analysis before agent group chat)
+            vision_analysis_json = None
+            if image_base64 or image_url:
+                try:
+                    vision_args = KernelArguments(
+                        image_base64=image_base64 or "",
+                        image_url=image_url or "",
+                        query=user_input
+                    )
+                    vision_result = await self.kernel.invoke(
+                        plugin_name="vision_tools",
+                        function_name="analyze_crop_image",
+                        arguments=vision_args
+                    )
+                    vision_analysis_json = vision_result.value if hasattr(vision_result, "value") else str(vision_result)
+                except Exception as vision_error:
+                    print(f"Warning: Vision analysis failed: {vision_error}")
+                    import traceback
+                    traceback.print_exc()
             
             # Parse user input
             parsed_data = await self.parse_user_input(parse_agent, user_input)
@@ -424,22 +457,45 @@ class KhetSetu:
                 }
             
             user_intent = parsed_data.get("user_intent", "weather_forecast")
+            has_image = parsed_data.get("has_image", False) or bool(image_base64 or image_url)
             location = parsed_data.get("location", "Unknown")
+
+            if has_image and user_intent not in ["diagnose_from_image", "image_qna"]:
+                user_intent = "diagnose_from_image"
             start_year = parsed_data.get("start_year", 2015)
             end_year = parsed_data.get("end_year", 2025)
             forecast_date = parsed_data.get("forecast_date", 0)
             
-            # Get weather data
-            historical_summary, forecast_summary = await self.get_weather_context(
-                location, start_year, end_year, forecast_date
-            )
-            
-            # Build context
-            context = (
-                f"The location is {location}. The user intent is {user_intent}. "
-                f"The user's question is {user_input}. The user's language is {user_language}. "
-                f"The weather forecast is {forecast_summary} and the weather history is {historical_summary}"
-            )
+            # Get weather data (only for weather-related intents)
+            historical_summary = ""
+            forecast_summary = ""
+            if user_intent in ["weather_forecast", "weather_history", "get_solution"]:
+                historical_summary, forecast_summary = await self.get_weather_context(
+                    location, start_year, end_year, forecast_date
+                )
+
+            # Build context with image handling
+            context_parts = [
+                f"The user intent is {user_intent}.",
+                f"The user's question is {user_input}.",
+                f"The user's language is {user_language}."
+            ]
+
+            # Include vision analysis results if we pre-analyzed an image
+            if vision_analysis_json:
+                context_parts.append("\n=== VISION ANALYSIS RESULTS (JSON) ===")
+                context_parts.append(vision_analysis_json)
+                context_parts.append("=== END VISION ANALYSIS ===\n")
+
+            if location and location != "Unknown":
+                context_parts.append(f"The location is {location}.")
+
+            if forecast_summary:
+                context_parts.append(f"Weather forecast: {forecast_summary}")
+            if historical_summary:
+                context_parts.append(f"Weather history: {historical_summary}")
+
+            context = " ".join(context_parts)
             
             await self.agent_group_chat.add_chat_message(ChatMessageContent(
                 role=AuthorRole.USER,

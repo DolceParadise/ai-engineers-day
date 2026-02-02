@@ -15,6 +15,7 @@ from src.agents import (
     WeatherHistoryAgent,
     SolutionAgent,
     ReviewerAgent,
+    VisionCropAgent,
 )
 
 
@@ -43,6 +44,7 @@ class AgentManager:
         history_agent = WeatherHistoryAgent.create(kernel)
         solution_agent = SolutionAgent.create(kernel)
         reviewer_agent = ReviewerAgent.create(kernel)
+        vision_agent = VisionCropAgent.create(kernel)
 
         # Create termination strategy
         termination_function = KernelFunctionFromPrompt(
@@ -81,7 +83,7 @@ class AgentManager:
         General Flow:
         - After the user input, PromptAgent always speaks first.
         - Another agent MUST speak after PromptAgent speaks first.
-        When choosing the agent to speak next, follow one of the 3 branches below depending on user intent.
+        When choosing the agent to speak next, follow one of the 4 branches below depending on user intent.
 
         1. If the user's intent is to get a weather forecast:
         - After PromptAgent replies, ForecastAgent responds.
@@ -97,12 +99,21 @@ class AgentManager:
         3. If the user's intent is to get a solution:
         - Same pattern using SolutionAgent instead of ForecastAgent.
 
+        4. If the user's intent is to diagnose a crop from an image or answer an image-based question:
+        - After PromptAgent replies, VisionCropAgent responds.
+        - After VisionCropAgent replies, ReviewerAgent provides feedback.
+        - If the ReviewerAgent says "This solution is completely approved.", PromptAgent responds and ends the conversation.
+        - Otherwise, VisionCropAgent replies again with revisions, and ReviewerAgent must review again.
+        - Repeat this cycle until ReviewerAgent approves the solution.
+        - Then PromptAgent replies with "This conversation is complete.", and only then respond with "none".
+
         Additional Enforcement Rules:
         1. Choose only from these participants:
         - PromptAgent
         - WeatherHistoryAgent (only choose this if the user's intent is weather history)
         - ForecastAgent (only choose this if the user's intent is weather forecast)
         - SolutionAgent (only choose this if the user's intent is to get a solution to a problem)
+        - VisionCropAgent (only choose this if the user's intent is to diagnose from image or answer image-based question)
         - ReviewerAgent
 
         2. NEVER select the same agent twice in a row.
@@ -126,6 +137,7 @@ class AgentManager:
                 forecast_agent,
                 history_agent,
                 solution_agent,
+                vision_agent,
                 reviewer_agent
             ],
             termination_strategy=KernelFunctionTerminationStrategy(

@@ -45,6 +45,8 @@ app.add_middleware(
 
 class QueryRequest(BaseModel):
     user_input: str = Field(..., min_length=1, description="User's agricultural query")
+    image_base64: Optional[str] = Field(None, description="Optional base64-encoded image data (without data: prefix)")
+    image_url: Optional[str] = Field(None, description="Optional public URL to the image")
 
 class TokenInfo(BaseModel):
     prompt_tokens: int
@@ -90,11 +92,23 @@ async def health_check():
 @app.post('/ask', response_model=QueryResponse)
 async def ask_query(request: QueryRequest):
     """
-    Main endpoint to process agricultural queries.
+    Main endpoint to process agricultural queries with optional image analysis.
     
-    Request:
+    Request (weather query):
     {
         "user_input": "What crops should I plant in Kenya?"
+    }
+
+    Request (image-based diagnosis):
+    {
+        "user_input": "What disease is affecting my plant?",
+        "image_base64": "iVBORw0KGgoAAAANSUhEUgAA..." (optional)
+    }
+
+    Request (image URL):
+    {
+        "user_input": "Analyze this crop photo",
+        "image_url": "https://example.com/crop.jpg" (optional)
     }
     
     Response:
@@ -109,13 +123,15 @@ async def ask_query(request: QueryRequest):
             },
             ...
         ],
-        "final_answer": "Based on weather...",
+        "final_answer": "Based on the image analysis...",
         "token_summary": {
             "total_prompt_tokens": 1200,
             "total_completion_tokens": 800,
             "total_cost_usd": 0.0125
         }
     }
+    
+    Note: Backwards compatible - requests with only user_input still work.
     """
     try:
         user_input = request.user_input.strip()
@@ -123,14 +139,12 @@ async def ask_query(request: QueryRequest):
         if not user_input:
             raise HTTPException(status_code=400, detail="user_input field is required")
         
-        # Process the query
-        # Note: This is a simplified example. In production, you should:
-        # 1. Run this in a task queue (Celery, RQ, etc.)
-        # 2. Add timeout handling
-        # 3. Persist results to database
-        # 4. Add rate limiting
-        
-        response = await process_query_async(user_input)
+        # Process the query with optional image fields
+        response = await process_query_async(
+            user_input,
+            image_base64=request.image_base64,
+            image_url=request.image_url
+        )
         return response
         
     except HTTPException:
@@ -161,7 +175,11 @@ async def ask_query_async_endpoint():
 # Helper Functions
 # ============================================================================
 
-async def process_query_async(user_input: str) -> QueryResponse:
+async def process_query_async(
+    user_input: str,
+    image_base64: Optional[str] = None,
+    image_url: Optional[str] = None
+) -> QueryResponse:
     """
     Process a query asynchronously and return structured response.
     
@@ -169,6 +187,8 @@ async def process_query_async(user_input: str) -> QueryResponse:
     
     Args:
         user_input (str): The user's agricultural query
+        image_base64 (Optional[str]): Base64-encoded image data without data: prefix
+        image_url (Optional[str]): Public URL to an image
         
     Returns:
         QueryResponse: Structured response matching frontend API contract
@@ -180,8 +200,12 @@ async def process_query_async(user_input: str) -> QueryResponse:
         # Create KhetSetu instance and process query
         khet_setu_system = KhetSetu()
         
-        # Run the async main method
-        result = await khet_setu_system.process_web_query(user_input)
+        # Run the async main method with image fields
+        result = await khet_setu_system.process_web_query(
+            user_input,
+            image_base64=image_base64,
+            image_url=image_url
+        )
         
         return QueryResponse(**result)
         

@@ -24,7 +24,8 @@ const state = {
     conversationId: null,
     tokenUsage: { promptTokens: 0, completionTokens: 0 },
     agentDetails: [],
-    allConversations: []
+    allConversations: [],
+    selectedImage: null
 };
 
 // DOM Elements
@@ -38,6 +39,13 @@ const debugContent = document.getElementById('debugContent');
 const newChatBtn = document.getElementById('newChatBtn');
 const darkModeBtn = document.getElementById('darkModeBtn');
 const savedChatsList = document.getElementById('savedChatsList');
+const attachBtn = document.getElementById('attachBtn');
+const imageInput = document.getElementById('imageInput');
+const imagePreview = document.getElementById('imagePreview');
+const previewImg = document.getElementById('previewImg');
+const previewName = document.getElementById('previewName');
+const previewSize = document.getElementById('previewSize');
+const removeImageBtn = document.getElementById('removeImageBtn');
 
 // Event Listeners
 document.addEventListener('DOMContentLoaded', () => {
@@ -47,6 +55,9 @@ document.addEventListener('DOMContentLoaded', () => {
     debugToggle?.addEventListener('click', toggleDebugPanel);
     newChatBtn?.addEventListener('click', resetConversation);
     darkModeBtn?.addEventListener('click', toggleDarkMode);
+    attachBtn?.addEventListener('click', () => imageInput?.click());
+    imageInput?.addEventListener('change', handleImageSelection);
+    removeImageBtn?.addEventListener('click', clearSelectedImage);
     
     // Auto-expand textarea
     userInput.addEventListener('input', autoExpandTextarea);
@@ -186,7 +197,7 @@ async function handleSubmit(e) {
     e.preventDefault();
     
     const query = userInput.value.trim();
-    if (!query) return;
+    if (!query && !state.selectedImage) return;
     
     // Generate conversation ID if needed
     if (!state.conversationId) {
@@ -195,8 +206,14 @@ async function handleSubmit(e) {
     }
     
     // Add user message to chat
-    addMessage(query, 'user');
-    state.currentConversation.push({ text: query, type: 'user' });
+    if (query) {
+        addMessage(query, 'user');
+        state.currentConversation.push({ text: query, type: 'user' });
+    }
+    if (state.selectedImage) {
+        addImageMessage(state.selectedImage.dataUrl, 'user');
+        state.currentConversation.push({ text: '[Image attached]', type: 'user' });
+    }
     
     userInput.value = '';
     autoExpandTextarea();
@@ -209,10 +226,15 @@ async function handleSubmit(e) {
     addMessage('Analyzing your query...', 'assistant-thinking');
     
     try {
+        const payload = { user_input: query || 'Analyze the attached crop image and describe any visible issues.' };
+        if (state.selectedImage?.base64) {
+            payload.image_base64 = state.selectedImage.base64;
+        }
+
         const response = await fetch(API_ENDPOINT, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ user_input: query })
+            body: JSON.stringify(payload)
         });
         
         if (!response.ok) {
@@ -262,6 +284,7 @@ async function handleSubmit(e) {
     } finally {
         submitBtn.disabled = false;
         state.isLoading = false;
+        clearSelectedImage();
     }
 }
 
@@ -303,6 +326,28 @@ function addMessage(text, type = 'assistant') {
     chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
+function addImageMessage(dataUrl, type = 'user') {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${type} image-message`;
+
+    const avatar = document.createElement('div');
+    avatar.className = 'message-avatar';
+    avatar.textContent = type === 'user' ? '👤' : '🌾';
+
+    const content = document.createElement('div');
+    content.className = 'message-content';
+    const img = document.createElement('img');
+    img.src = dataUrl;
+    img.alt = 'Uploaded image';
+    content.appendChild(img);
+
+    messageDiv.appendChild(avatar);
+    messageDiv.appendChild(content);
+    chatMessages.appendChild(messageDiv);
+
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
 // Toggle debug panel
 function toggleDebugPanel() {
     debugContent.classList.toggle('hidden');
@@ -338,6 +383,7 @@ function resetConversation() {
     state.conversationId = null;
     state.tokenUsage = { promptTokens: 0, completionTokens: 0 };
     debugPanel.classList.add('hidden');
+    clearSelectedImage();
     showNotification('Conversation cleared', 'success');
 }
 
@@ -360,4 +406,70 @@ function showNotification(message, type = 'info') {
     setTimeout(() => {
         notification.remove();
     }, 4000);
+}
+
+// ============================================================================
+// Image Handling
+// ============================================================================
+
+function handleImageSelection(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+        showNotification('Please select a valid image file.', 'error');
+        clearSelectedImage();
+        return;
+    }
+
+    const maxSizeBytes = 5 * 1024 * 1024;
+    if (file.size > maxSizeBytes) {
+        showNotification('Image size must be under 5MB.', 'error');
+        clearSelectedImage();
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+        const dataUrl = reader.result;
+        const base64 = typeof dataUrl === 'string' ? dataUrl.split(',')[1] : null;
+        state.selectedImage = {
+            dataUrl,
+            base64,
+            name: file.name,
+            size: file.size
+        };
+        previewImg.src = dataUrl;
+        previewName.textContent = file.name;
+        previewSize.textContent = formatBytes(file.size);
+        imagePreview.classList.remove('hidden');
+    };
+    reader.readAsDataURL(file);
+}
+
+function clearSelectedImage() {
+    state.selectedImage = null;
+    if (imageInput) {
+        imageInput.value = '';
+    }
+    if (imagePreview) {
+        imagePreview.classList.add('hidden');
+    }
+    if (previewImg) {
+        previewImg.src = '';
+    }
+    if (previewName) {
+        previewName.textContent = '';
+    }
+    if (previewSize) {
+        previewSize.textContent = '';
+    }
+}
+
+function formatBytes(bytes) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`;
 }

@@ -1,5 +1,6 @@
 import os 
 import asyncio
+import json
 import requests
 from dotenv import load_dotenv
 from openai import AsyncOpenAI
@@ -134,3 +135,186 @@ async def get_adaptations():
     with open('./datasets/adaptations.txt', "r") as file:
         content = file.read()
         return content
+
+
+@kernel_function
+async def analyze_crop_image(image_base64: str = None, image_url: str = None, query: str = "Analyze this crop image") -> str:
+    """
+    Analyze a crop/field image using OpenAI's vision capabilities.
+    
+    Provides structured analysis of crop images including visual observations,
+    crop identification, disease/pest detection, and answers user queries based
+    on image analysis.
+    
+    Args:
+        image_base64: Optional base64-encoded image data (without data: prefix)
+        image_url: Optional URL to the image (public URL)
+        query: User's question or analysis request about the image
+        
+    Returns:
+        JSON string containing:
+        {
+            "observations": {
+                "crop_type": str,
+                "growth_stage": str,
+                "visual_stress": [str],
+                "pests_diseases": [str],
+                "weeds_detected": bool,
+                "irrigation_status": str,
+                "soil_conditions": str,
+                "anomalies": [str]
+            },
+            "likely_crop": [
+                {"name": str, "confidence": float}
+            ],
+            "issues": [
+                {"name": str, "evidence": str, "confidence": float}
+            ],
+            "recommended_next_photos": [str],
+            "answer": str
+        }
+        
+    Raises:
+        ValueError: If neither image_base64 nor image_url is provided
+        RuntimeError: If OpenAI API call fails
+    """
+    
+    # Validate inputs
+    if not image_base64 and not image_url:
+        error_response = {
+            "observations": {},
+            "likely_crop": [],
+            "issues": [],
+            "recommended_next_photos": [
+                "Please provide either image_base64 or image_url",
+                "For best results, provide a clear photo of the affected plant/field"
+            ],
+            "answer": "I need an image to analyze. Please provide either a base64-encoded image or a public URL to an image."
+        }
+        return json.dumps(error_response)
+    
+    try:
+        openai_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        
+        # Build message content with vision capabilities
+        content = [
+            {
+                "type": "text",
+                "text": f"""Analyze this crop/field image and answer the following question: {query}
+
+IMPORTANT: Respond ONLY with valid JSON (no markdown, no code blocks). Use this exact structure:
+
+{{
+    "observations": {{
+        "crop_type": "identified crop type or 'unknown'",
+        "growth_stage": "seedling/vegetative/flowering/fruiting/mature/harvested",
+        "visual_stress": ["list of visible stress symptoms"],
+        "pests_diseases": ["list of detected pests or diseases"],
+        "weeds_detected": true/false,
+        "irrigation_status": "description of irrigation state",
+        "soil_conditions": "description of visible soil state",
+        "anomalies": ["list of unusual features or damage"]
+    }},
+    "likely_crop": [
+        {{"name": "crop name", "confidence": 0.95}},
+        {{"name": "alternative crop", "confidence": 0.3}}
+    ],
+    "issues": [
+        {{"name": "issue name", "evidence": "visual evidence from image", "confidence": 0.85}}
+    ],
+    "recommended_next_photos": [
+        "close-up of affected leaves",
+        "underside of leaves",
+        "wider field view"
+    ],
+    "answer": "Direct answer to the user's question based on image analysis"
+}}
+
+Rules:
+- Be specific about what you see, not what you assume
+- Confidence scores: 0.0-1.0, where 1.0 is certain
+- For uncertain items, include alternative hypotheses
+- If something cannot be determined from the image, say "cannot determine"
+- Return ONLY valid JSON, no explanation or markdown
+"""
+            }
+        ]
+        
+        # Add image to content
+        if image_base64:
+            # Ensure image_base64 doesn't have data: prefix
+            if image_base64.startswith("data:"):
+                image_base64 = image_base64.split(",")[1]
+            
+            content.append({
+                "type": "image_url",
+                "image_url": {
+                    "url": f"data:image/jpeg;base64,{image_base64}",
+                    "detail": "high"
+                }
+            })
+        elif image_url:
+            content.append({
+                "type": "image_url",
+                "image_url": {
+                    "url": image_url,
+                    "detail": "high"
+                }
+            })
+        
+        # Call OpenAI API with vision
+        response = await openai_client.chat.completions.create(
+            model="gpt-4o-mini",  # Using GPT-4 Turbo for vision; fallback to GPT-4 if needed
+            messages=[
+                {
+                    "role": "user",
+                    "content": content
+                }
+            ],
+            temperature=0.3,  # Lower temperature for more consistent analysis
+            max_tokens=1500
+        )
+        
+        # Extract and validate response
+        response_text = response.choices[0].message.content.strip()
+        
+        # Remove markdown code blocks if present
+        if response_text.startswith("```"):
+            response_text = response_text.split("```")[1]
+            if response_text.startswith("json"):
+                response_text = response_text[4:]
+            response_text = response_text.split("```")[0]
+        
+        response_text = response_text.strip()
+        
+        # Parse and validate JSON
+        try:
+            analysis_result = json.loads(response_text)
+        except json.JSONDecodeError:
+            # If parsing fails, return structured error
+            analysis_result = {
+                "observations": {},
+                "likely_crop": [],
+                "issues": [],
+                "recommended_next_photos": [
+                    "Unable to analyze image clearly",
+                    "Please provide a clearer photo with better lighting"
+                ],
+                "answer": f"I encountered an error analyzing the image. Raw response: {response_text[:200]}"
+            }
+        
+        return json.dumps(analysis_result)
+        
+    except Exception as e:
+        # Handle API errors gracefully
+        error_response = {
+            "observations": {},
+            "likely_crop": [],
+            "issues": [],
+            "recommended_next_photos": [
+                "Technical error during image analysis",
+                "Please try again or provide a different image"
+            ],
+            "answer": f"Sorry, I encountered an error analyzing the image: {str(e)}"
+        }
+        return json.dumps(error_response)

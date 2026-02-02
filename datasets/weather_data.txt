@@ -5362,3 +5362,4 @@ T2M,2025,16.95,21.12,27.37,30.46,31.82,31.58,29.14,28.11,27.94,25.63,19.18,14.62
 
 {'date': '2026-02-02', 'temp_avg': 19.0, 'temp_max': 23.5, 'temp_min': 15.8, 'weather': 'overcast clouds', 'humidity_avg': 47.0, 'wind_speed_kph': 9.0, 'conditions': ['overcast clouds', 'overcast clouds', 'overcast clouds', 'overcast clouds', 'overcast clouds']}
 {'date': '2026-02-02', 'temp_avg': 19.0, 'temp_max': 23.5, 'temp_min': 15.8, 'weather': 'overcast clouds', 'humidity_avg': 47.0, 'wind_speed_kph': 9.0, 'conditions': ['overcast clouds', 'overcast clouds', 'overcast clouds', 'overcast clouds', 'overcast clouds']}
+{'date': '2026-02-02', 'temp_avg': 7.6, 'temp_max': 8.6, 'temp_min': 5.9, 'weather': 'scattered clouds', 'humidity_avg': 84.0, 'wind_speed_kph': 10.5, 'conditions': ['scattered clouds', 'broken clouds', 'overcast clouds', 'light rain']}

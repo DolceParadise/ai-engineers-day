@@ -6,6 +6,7 @@ from src.agents.forecast_agent import ForecastAgent
 from src.agents.weather_history_agent import WeatherHistoryAgent
 from src.agents.solution_agent import SolutionAgent
 from src.agents.reviewer_agent import ReviewerAgent
+from src.agents.vision_crop_agent import VisionCropAgent
 
 __all__ = [
     'PromptAgent',
@@ -14,4 +15,5 @@ __all__ = [
     'WeatherHistoryAgent',
     'SolutionAgent',
     'ReviewerAgent',
+    'VisionCropAgent',
 ]

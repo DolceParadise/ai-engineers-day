@@ -4,7 +4,7 @@ import os
 from openai import AsyncOpenAI
 from semantic_kernel.kernel import Kernel
 from semantic_kernel.connectors.ai.open_ai import OpenAIChatCompletion
-from kernel_functions import get_NASA_data, get_adaptations, get_forecast
+from kernel_functions import get_NASA_data, get_adaptations, get_forecast, analyze_crop_image
 
 
 class KernelConfig:
@@ -46,6 +46,13 @@ class KernelConfig:
             plugin_name="climate_tools",
             function_name="get_adaptations",
             function=get_adaptations
+        )
+
+        # Add vision tools
+        kernel.add_function(
+            plugin_name="vision_tools",
+            function_name="analyze_crop_image",
+            function=analyze_crop_image
         )
 
         return kernel
